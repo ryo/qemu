@@ -908,7 +908,7 @@ if have_system and get_option('curses').allowed()
       has_curses_h = cc.has_header('curses.h', args: curses_compile_args)
     endif
     if has_curses_h
-      curses_libname_list = (targetos == 'windows' ? ['pdcurses'] : ['ncursesw', 'cursesw'])
+      curses_libname_list = (targetos == 'windows' ? ['pdcurses'] : ['ncursesw', 'cursesw', 'curses'])
       foreach curses_libname : curses_libname_list
         libcurses = cc.find_library(curses_libname,
                                     required: false,
@@ -926,7 +926,7 @@ if have_system and get_option('curses').allowed()
     endif
   endif
   if get_option('iconv').allowed()
-    foreach link_args : [ ['-liconv'], [] ]
+    foreach link_args : [ [], ['-liconv'] ]
       # Programs will be linked with glib and this will bring in libiconv on FreeBSD.
       # We need to use libiconv if available because mixing libiconv's headers with
       # the system libc does not work.
