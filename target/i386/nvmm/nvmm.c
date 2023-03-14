@@ -22,8 +22,6 @@
 #include "migration/blocker.h"
 #include "strings.h"
 
-#include "nvmm-accel-ops.h"
-
 #include <nvmm.h>
 
 struct qemu_vcpu {
