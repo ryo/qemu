@@ -128,7 +128,8 @@ accelerator_targets = { 'CONFIG_KVM': kvm_targets }
 
 if cpu in ['aarch64']
   accelerator_targets += {
-    'CONFIG_HVF': ['aarch64-softmmu']
+    'CONFIG_HVF': ['aarch64-softmmu'],
+    'CONFIG_NVMM': ['aarch64-softmmu'],
   }
 endif
 

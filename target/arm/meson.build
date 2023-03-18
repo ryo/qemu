@@ -26,6 +26,7 @@ arm_softmmu_ss.add(files(
 ))
 
 subdir('hvf')
+subdir('nvmm')
 
 if 'CONFIG_TCG' in config_all
    subdir('tcg')
