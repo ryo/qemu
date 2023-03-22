@@ -153,8 +153,8 @@ static struct nvmm_sreg_match nvmm_sreg_match[] = {
     { NVMM_AARCH64_SPR_ELR_EL1,             ENCODE_SYSREG(  4,  0, 3, 0, 1) },
     { NVMM_AARCH64_SPR_ESR_EL1,             ENCODE_SYSREG(  5,  2, 3, 0, 0) },
     { NVMM_AARCH64_SPR_FAR_EL1,             ENCODE_SYSREG(  6,  0, 3, 0, 0) },
-//  { NVMM_AARCH64_SPR_FPCR,                ENCODE_SYSREG(  4,  4, 3, 3, 0) },
-//  { NVMM_AARCH64_SPR_FPSR,                ENCODE_SYSREG(  4,  4, 3, 3, 1) },
+//EX  { NVMM_AARCH64_SPR_FPCR,                ENCODE_SYSREG(  4,  4, 3, 3, 0) },
+//EX  { NVMM_AARCH64_SPR_FPSR,                ENCODE_SYSREG(  4,  4, 3, 3, 1) },
 //  { NVMM_AARCH64_SPR_GCR_EL1,             ENCODE_SYSREG(  1,  0, 3, 0, 6) },
 //  { NVMM_AARCH64_SPR_GMID_EL1,            ENCODE_SYSREG(  0,  0, 3, 1, 4) },
 //  { NVMM_AARCH64_SPR_ID_AA64AFR0_EL1,     ENCODE_SYSREG(  0,  5, 3, 0, 4) },
@@ -198,8 +198,8 @@ static struct nvmm_sreg_match nvmm_sreg_match[] = {
 //  { NVMM_AARCH64_SPR_MDCCSR_EL0,          ENCODE_SYSREG(  0,  1, 2, 3, 0) },
 //  { NVMM_AARCH64_SPR_MDRAR_EL1,           ENCODE_SYSREG(  1,  0, 2, 0, 0) },
     { NVMM_AARCH64_SPR_MDSCR_EL1,           ENCODE_SYSREG(  0,  2, 2, 0, 2) },
-//ERROR    { NVMM_AARCH64_SPR_MIDR_EL1,            ENCODE_SYSREG(  0,  0, 3, 0, 0) },
-//ERROR    { NVMM_AARCH64_SPR_MPIDR_EL1,           ENCODE_SYSREG(  0,  0, 3, 0, 5) },
+//EX    { NVMM_AARCH64_SPR_MIDR_EL1,            ENCODE_SYSREG(  0,  0, 3, 0, 0) },
+//EX    { NVMM_AARCH64_SPR_MPIDR_EL1,           ENCODE_SYSREG(  0,  0, 3, 0, 5) },
 //  { NVMM_AARCH64_SPR_MVFR0_EL1,           ENCODE_SYSREG(  0,  3, 3, 0, 0) },
 //  { NVMM_AARCH64_SPR_MVFR1_EL1,           ENCODE_SYSREG(  0,  3, 3, 0, 1) },
 //  { NVMM_AARCH64_SPR_MVFR2_EL1,           ENCODE_SYSREG(  0,  3, 3, 0, 2) },
@@ -339,18 +339,21 @@ nvmm_set_registers(CPUState *cpu)
 
     /* GPRs */
     for (i = 0; i < 32; i++) {
-        state->gprs[NVMM_AARCH64_GPR_X0 + i ] = env->xregs[i];
+        state->gprs[i] = env->xregs[i];
     }
-
-    /* FPRs */
-    //XXXXXXXXXXXXXXXXXXXXXXXXXX NOTYET
-    //FPCR
-    //FPSR
-
-    /* SPRs */
+    state->sprs[NVMM_AARCH64_SPR_SP_EL0] = env->sp_el[0];
+    state->sprs[NVMM_AARCH64_SPR_SP_EL1] = env->sp_el[1];
     state->sprs[NVMM_AARCH64_SPR_PC] = env->pc;
     state->sprs[NVMM_AARCH64_SPR_SPSR_EL1] = pstate_read(env);
 
+    /* FPRs */
+    for (i = 0; i < 32; i++) {
+        memcpy(&state->fprs[i], &env->vfp.zregs[i], sizeof(state->fprs[i]));
+    }
+    state->sprs[NVMM_AARCH64_SPR_FPCR] = vfp_get_fpcr(env);
+    state->sprs[NVMM_AARCH64_SPR_FPSR] = vfp_get_fpsr(env);
+
+    /* SPRs */
     assert(write_cpustate_to_list(arm_cpu, false));
     for (i = 0; i < ARRAY_SIZE(nvmm_sreg_match); i++) {
         if (nvmm_sreg_match[i].cp_idx == -1) {
@@ -391,20 +394,21 @@ nvmm_get_registers(CPUState *cpu)
 
     /* GPRs */
     for (i = 0; i < 32; i++) {
-        env->xregs[i] = state->gprs[NVMM_AARCH64_GPR_X0 + i ];
+        env->xregs[i] = state->gprs[i];
     }
-
-    /* FPRs */
-    //XXXXXXXXXXXXXX NOTYET
-    //FPCR
-    //FPSR
-
-    /* SPRs */
-    env->pc = state->sprs[NVMM_AARCH64_SPR_PC];
-    pstate_write(env, state->sprs[NVMM_AARCH64_SPR_SPSR_EL1]);
     env->sp_el[0] = state->sprs[NVMM_AARCH64_SPR_SP_EL0];
     env->sp_el[1] = state->sprs[NVMM_AARCH64_SPR_SP_EL1];
+    env->pc = state->sprs[NVMM_AARCH64_SPR_PC];
+    pstate_write(env, state->sprs[NVMM_AARCH64_SPR_SPSR_EL1]);
 
+    /* FPRs */
+    for (i = 0; i < 32; i++) {
+        memcpy(&env->vfp.zregs[i], &state->fprs[i], sizeof(state->fprs[i]));
+    }
+    vfp_set_fpcr(env, state->sprs[NVMM_AARCH64_SPR_FPCR]);
+    vfp_set_fpsr(env, state->sprs[NVMM_AARCH64_SPR_FPSR]);
+
+    /* SPRs */
     for (i = 0; i < ARRAY_SIZE(nvmm_sreg_match); i++) {
         if (nvmm_sreg_match[i].cp_idx == -1) {
             continue;
